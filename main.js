@@ -5,13 +5,68 @@
     if (!window.Audio) {
         View.showError("Audio is not supported in your browser. Please, try in IE9 or any other modern browser.");
     }
+    var cutCompressor = (function () {
+        var i = 64, abc = [], abci = [];
+        for (;i--;) abci[abc[i]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".charCodeAt(i)] = i;
+        function toBase64(n) {
+            var a = [];
+            while (n) { a.push(abc[n % base]); n = Math.floor(n / base); }
+            return String.prototype.apply(null, a.reverse());
+        }
+        function fromBase64(s) {
+            var n = 0, i;
+            for (i = 0; i < s.length; i++) n = n * 64 + abci[s.charCodeAt(i)];
+            return n;
+        }
+        function parseTime(m) { return ((m[0]*60 + m[1]) * 60 + m[2]) * 1000 + (+m[3]); }
+        function toTime(t) { return new Date(t).toJSON().slice(12,-1).replace(/:/g,'.'); }
+        return {
+            deflate: function (cutChunk) {
+                var prefix, out;
+                cutChunk.forEach(function (cut) {
+                    var m = cut.fileName.match(/^(\w+s\d{2}e\d{2})_1_(\d)\.(\d{2})\.(\d{2})\.(\d{3})-(\d)\.(\d{2})\.(\d{2})\.(\d{3})\.mp3$/);
+                    if (!prefix) out.push(prefix = m[1]);
+                    if (prefix != m[1]) throw new Error("Uncommon prefix");
+                    var t1 = parseTime(m.slice(1, 5)),
+                        t2 = parseTime(m.slice(5, 9)) - t1;
+                    out.push(toBase64(t1) + '-' + toBase64(t2-t1) + ':' + cut.phrase);
+                });
+                return out.join("\t");
+            },
+            inflate: function (str) {
+                var parts = str.split("\t"),
+                    prefix = parts[0];
+                return parts.slice(1).map(function (s) {
+                    var m = s.match(/^([\w\/+]+)-([\w\/+]+):(.+)$/);
+                    var t1 = fromBase64(m[1]),
+                        t2 = fromBase64(m[2]);
+                    return {
+                        fileName: prefix + '_1_' + toTime(t1) + '-' + toTime(t2+t1) + '.mp3',
+                        phrase: m[3],
+                        transcription: ""
+                    };
+                });
+            }
+        };
+    }());
     Controller = {
         re: null,
         searchRegExp: function (word, whole) {
-            word = word.replace(/./g, function (c) { return "\\u" + ("000" + c.charCodeAt(0).toString(16)).slice(-4); });
-            return whole ?
-                new RegExp("(^| )(" + word + ")([ ,.:;?!]|$)", 'i') :
-                new RegExp("()(" + word + ")()", 'i');
+            var regexpSearch = !/[.?]$/.test(word);
+            try {
+                new RegExp(word);
+            } catch (e) {
+                regexpSearch = false;
+            }
+            if (!regexpSearch) {
+                word = word.replace(/./g, function (c) { return "\\u" + ("000" + c.charCodeAt(0).toString(16)).slice(-4); });
+            } else {
+                word = word.replace(/\\(\d+)/g, function (m, d) { return "\\" + (+d+2); });
+            }
+            this.regexpSearch = regexpSearch;
+            return (whole && !regexpSearch) ?
+                new RegExp("(^| )(" + word + ")([ ,.:;?!]|$)", 'ig') :
+                new RegExp("()(" + word + ")()", 'ig');
         },
         searchWord: function (word, whole) {
             var mc = Model.matchedCuts;
@@ -22,10 +77,25 @@
                     if (this.re.test(cut.phrase)) { mc.push(i); }
                 }, this);
             }
-            View.showSearchAmount(mc.length);
+            View.showSearchAmount(mc.length, this.regexpSearch);
+        },
+        placeMarks: function (str) {
+            return str.replace(this.re, function () {
+                var m = Array.prototype.slice.call(arguments, 0, -2);
+                return m[1] + "<mark>" + m[2] + "</mark>" + m.slice(-1)[0];
+            });
         },
         search: function (event) {
             Controller.searchWord(View.kw.value, View.wholeword.checked);
+        },
+        saveHash: function (value) {
+            location.replace(location.href.replace(/#.*$/, '') + '#' + value);
+        },
+        loadHash: function () {
+            if (/^#.+/.test(location.hash)) {
+                View.kw.value = location.hash.replace(/^#/, '');
+                return true;
+            }
         },
         getSeriesTitles: function () {
             return Object.keys(Model.series);
@@ -35,7 +105,13 @@
         showProgress: function (percent) {
             var w, c;
             if (percent === 1) {
-                this.kw.style.boxShadow = 'none';
+                this.kw.style.boxShadow = '';
+                this.kw.disabled = false;
+                this.kw.focus();
+                if (Controller.loadHash()) {
+                    Controller.search();
+                }
+                return;
             }
             w = Math.round(250 * percent);
             c = 192 + Math.round((238-192) * percent);
@@ -48,14 +124,18 @@
             document.body.appendChild(error);
         },
         showTitle: function () {
-            this.innerHTML = this.title.replace(Controller.re, "$1<mark>$2</mark>$3");
+            if (this.classList.contains('spoiled')) {
+                return false;
+            }
+            this.innerHTML = Controller.placeMarks(this.title);
             this.title = '';
-            this.onclick = null;
             this.classList.add('spoiled');
             return false;
         },
-        showSearchAmount: function (n) {
-            this.infoCount.innerHTML = n ? "<b>" + n + "</b> phrases found" : "";
+        showSearchAmount: function (n, isRegExp) {
+            this.infoCount.innerHTML = 
+                (n ? "<b>" + n + "</b> phrases found" : "Nothing found") +
+                (isRegExp ? " *R" : "");
         },
         kw: null,
         slist: null,
@@ -76,9 +156,10 @@
             Controller.getSeriesTitles().forEach(function (title) {
                 this.slist.insertAdjacentHTML('beforeend', '<div><label><input type="checkbox" name="' + title + '" /> ' + title + '</label></div>');
             }, this);
-            View.form.onsubmit = formSubmit;
+            View.form.onsubmit = searchAction;
             this.kw.onkeyup = this.kw.onchange = function (event) {
                 View.wholeword.checked = this.value.indexOf(' ') === -1;
+                Controller.saveHash(this.value);
                 Controller.search(event);
             };
             View.wholeword.onclick = Controller.search;
@@ -114,19 +195,13 @@
             while ((data = this.titleSewers[this.titles[this.sewerIndex]])) {
                 data.forEach(processRecord);
                 this.sewerIndex++;
+                View.showProgress(this.sewerIndex / this.titles.length);
             }
             if (this.sewerIndex > this.titles.length) {
                 this.ready = true;
             }
         }
     };
-
-    function loadMeta (data, name) {
-        Model.load(data, name);
-        View.kw.disabled = false;
-        View.kw.style.boxShadow = "";
-        View.kw.focus();
-    }
 
     window.onload = function () {
         View.initFields();
@@ -136,7 +211,7 @@
             var script = document.createElement('script');
             script.type = "text/javascript";
             window[name] = function (data) {
-                loadMeta(data, name);
+                Model.load(data, name);
                 window[name] = null;
             };
             script.src = "meta/" + name + ".csv.js";
@@ -166,8 +241,9 @@
             div.children[0].preload = 'auto';
         }
     }
-    function formSubmit (event) {
+    function searchAction (event) {
         event.preventDefault();
+        View.mainBlock.innerHTML = "";
         var title = "";
         Model.matchedCuts.forEach(function (idx) {
             var cut = Model.cuts[idx];
