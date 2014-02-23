@@ -2,9 +2,6 @@
     'use strict';
     function $(id) { return document.getElementById(id); }
     var View, Model, Controller;
-    if (!window.Audio) {
-        View.showError("Audio is not supported in your browser. Please, try in IE9 or any other modern browser.");
-    }
     var cutCompressor = (function () {
         var i = 64, abc = [], abci = [];
         for (;i--;) abci[abc[i]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".charCodeAt(i)] = i;
@@ -52,7 +49,7 @@
     Controller = {
         re: null,
         searchRegExp: function (word, whole) {
-            var regexpSearch = !/[.?]$/.test(word);
+            var regexpSearch = !/[.?]$/.test(word) && !/^\w+$/i.test(word);
             try {
                 new RegExp(word);
             } catch (e) {
@@ -118,7 +115,7 @@
             this.kw.style.boxShadow = w + "px 0 0 0 rgb(" + [c,c,c] + ") inset";
         },
         showError: function (msg) {
-            var error = document.createElemenet('div');
+            var error = document.createElement('div');
             error.className = 'error';
             error.innerHTML = msg;
             document.body.appendChild(error);
@@ -204,6 +201,9 @@
     };
 
     window.onload = function () {
+        if (!window.Audio) {
+            View.showError("Audio is not supported in your browser. Please, try in IE9 or any other modern browser.");
+        }
         View.initFields();
         View.initEvents();
         var data = Model.series, name;
