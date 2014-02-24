@@ -1,2 +1,6 @@
 media
 meta
+dist
+node_modules
+main.min.js
+main.min.map
