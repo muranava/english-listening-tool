@@ -180,17 +180,17 @@
             return "media/" + path.match(/^\w+_s\d{2}e\d{2}/)[0] + "/" + path;
         },
         load: function (data, name) {
-            var processRecord = function (rec) {
-                this.cuts.push({
+            function processRecord(model, name, rec) {
+                model.cuts.push({
                     fileName: rec[0],
                     phrase: rec[1],
                     transcription: rec[2],
                     title: name
                 });
-            }.bind(this);
+            }
             this.titleSewers[name] = data;
-            while ((data = this.titleSewers[this.titles[this.sewerIndex]])) {
-                data.forEach(processRecord);
+            while ((data = this.titleSewers[name = this.titles[this.sewerIndex]])) {
+                data.forEach(processRecord.bind(null, this, name));
                 this.sewerIndex++;
                 View.showProgress(this.sewerIndex / this.titles.length);
             }
@@ -234,11 +234,15 @@
         audio.src = Model.getFullPath(path);
     }*/
 
-    function preloadFurther () {
-        var div = this.parentNode,
+    function preloadFurther (event) {
+        var div = event.target.parentNode,
+            node,
             i = 3;
         while (i-- && (div = div.nextElementSibling)) {
-            div.children[0].preload = 'auto';
+            if (!div) { break; }
+            node = div.children[0];
+            if (!node) { i++; continue; }
+            node.preload = 'auto';
         }
     }
     function searchAction (event) {
@@ -271,6 +275,6 @@
         });
         var firstTrack = document.querySelector('audio');
         firstTrack.preload = 'auto';
-        firstTrack.onplay();
+        firstTrack.onplay({ target: firstTrack });
     }
 }());
