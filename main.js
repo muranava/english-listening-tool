@@ -55,6 +55,7 @@
             } catch (e) {
                 regexpSearch = false;
             }
+            this.IPAsearch = /[\u0250-\u02AF]/.test(word);
             if (!regexpSearch) {
                 word = word.replace(/./g, function (c) { return "\\u" + ("000" + c.charCodeAt(0).toString(16)).slice(-4); });
             } else {
@@ -68,10 +69,11 @@
         searchWord: function (word, whole) {
             var mc = Model.matchedCuts;
             mc.length = 0;
+            var fieldName = this.IPAsearch ? 'transcription' : 'phrase';
             if (word) {
                 this.re = this.searchRegExp(word, whole);
                 Model.cuts.forEach(function (cut, i) {
-                    if (this.re.test(cut.phrase)) { mc.push(i); }
+                    if (this.re.test(cut[fieldName])) { mc.push(i); }
                 }, this);
             }
             View.showSearchAmount(mc.length, this.regexpSearch);
@@ -79,7 +81,7 @@
         placeMarks: function (str) {
             return str.replace(this.re, function () {
                 var m = Array.prototype.slice.call(arguments, 0, -2);
-                return m[1] + "<mark>" + m[2] + "</mark>" + m.slice(-1)[0];
+                return (m[1] + "<mark onclick='this.innerHTML=\"" + m[2].replace(/'/g, "&#39;").replace(/"/g, "&quot;") + "\"'>***</mark>" + m.slice(-1)[0]).replace(/&/g, "&amp;");
             });
         },
         search: function (event) {
@@ -210,6 +212,7 @@
         function loadScript (name) {
             var script = document.createElement('script');
             script.type = "text/javascript";
+            script.charset = "utf-8";
             window[name] = function (data) {
                 Model.load(data, name);
                 window[name] = null;
@@ -264,8 +267,7 @@
                     audio.preload = 'none';
                     audio.onplay = preloadFurther;
                 div.appendChild(audio);
-                var a = document.createElement('a');
-                    a.href = '#';
+                var a = document.createElement('span');
                     a.onclick = View.showTitle;
                     a.innerHTML = "text";
                     a.className = 'spoiler';
