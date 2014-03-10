@@ -10,6 +10,11 @@ You'll need media files as well as meta-information for them
 
 ### CHANGELOG
 
+* 0.1.6
+    - search by transcription
+    - hide found word by default
+    - fix: possible to select phrase text    
+
 * 0.1.5
     - fixed wrong titles for tracks due to async out-of-order loading
     - fixed js error on audio preloading in some cases
