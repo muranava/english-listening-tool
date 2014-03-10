@@ -1,45 +1,15 @@
 define('controller', ['event', 'model'], function (Event, Model) {
     var Controller = {
-        re: null,
-        searchRegExp: function (word, whole) {
-            var regexpSearch = !/[.?]$/.test(word) && !/^\w+$/i.test(word);
-            try {
-                new RegExp(word);
-            } catch (e) {
-                regexpSearch = false;
-            }
-            if (!regexpSearch) {
-                word = word.replace(/./g, function (c) { return "\\u" + ("000" + c.charCodeAt(0).toString(16)).slice(-4); });
-            } else {
-                word = word.replace(/\\(\d+)/g, function (m, d) { return "\\" + (+d+2); });
-            }
-            this.regexpSearch = regexpSearch;
-            return (whole && !regexpSearch) ?
-                new RegExp("(^| )(" + word + ")([ ,.:;?!]|$)", 'ig') :
-                new RegExp("()(" + word + ")()", 'ig');
-        },
-        searchWord: function (word, whole) {
-            var mc = Model.matchedCuts;
-            mc.length = 0;
-            if (word) {
-                this.re = this.searchRegExp(word, whole);
-                Model.cuts.forEach(function (cut, i) {
-                    if (this.re.test(cut.phrase)) { mc.push(i); }
-                }, this);
-            }
-            Event.fire('search.count', {
-                total: mc.length,
-                isRegExpSearch: this.regexpSearch
-            });
-        },
         placeMarks: function (str) {
-            return str.replace(this.re, function () {
+            return str.replace(Model.re, function () {
                 var m = Array.prototype.slice.call(arguments, 0, -2);
-                return m[1] + "<mark>" + m[2] + "</mark>" + m.slice(-1)[0];
+                return (
+                    m[1] + "<mark data-text='" + m[2].replace(/'/g, "&#39;") + "'>***</mark>" + m.slice(-1)[0]
+                );
             });
         },
         search: function (data) {
-            this.searchWord(data.term, data.wholeword);
+            Model.searchWord(data.term, data.wholeword);
         },
         saveHash: function (value) {
             location.replace(location.href.replace(/#.*$/, '') + '#' + value);

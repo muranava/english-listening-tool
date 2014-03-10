@@ -1,10 +1,12 @@
 define('model', ['event'], function (Event) {
-    return window.model = {
+    var titleSewers = {},
+        sewerIndex = 0;
+    return {
         cuts: [],
         titles: [],
-        titleSewers: {},
-        sewerIndex: 0,
         matchedCuts: [],
+        re: null,
+        IPAsearch: false,
         series: {
             endeavour: ['1_1', '1_2', '1_3', '1_4'],
             sherlock: ['1_1', '1_2', '1_3', '2_1', '2_2', '2_3', '3_1'],
@@ -15,7 +17,40 @@ define('model', ['event'], function (Event) {
         getFullPath: function (path) {
             return "media/" + path.match(/^\w+_s\d{2}e\d{2}/)[0] + "/" + path;
         },
-        load: function (data, name) {
+        searchRegExp: function (word, whole) {
+            var regexpSearch = !/[.?]$/.test(word) && !/^\w+$/i.test(word);
+            try {
+                new RegExp(word);
+            } catch (e) {
+                regexpSearch = false;
+            }
+            this.IPAsearch = /[\u0250-\u02AF]/.test(word);
+            if (!regexpSearch) {
+                word = word.replace(/./g, function (c) { return "\\u" + ("000" + c.charCodeAt(0).toString(16)).slice(-4); });
+            } else {
+                word = word.replace(/\\(\d+)/g, function (m, d) { return "\\" + (+d+2); });
+            }
+            this.regexpSearch = regexpSearch;
+            return (whole && !regexpSearch) ?
+                new RegExp("(^| )(" + word + ")([ ,.:;?!]|$)", 'ig') :
+                new RegExp("()(" + word + ")()", 'ig');
+        },
+        searchWord: function (word, whole) {
+            var mc = this.matchedCuts;
+            mc.length = 0;
+            var fieldName = this.IPAsearch ? 'transcription' : 'phrase';
+            if (word) {
+                this.re = this.searchRegExp(word, whole);
+                this.cuts.forEach(function (cut, i) {
+                    if (this.re.test(cut[fieldName])) { mc.push(i); }
+                }, this);
+            }
+            Event.fire('search.count', {
+                total: mc.length,
+                isRegExpSearch: this.regexpSearch
+            });
+        },
+        add: function (data, name) {
             function processRecord (name, rec) {
                 this.cuts.push({
                     fileName: rec[0],
@@ -24,11 +59,11 @@ define('model', ['event'], function (Event) {
                     title: name
                 });
             }
-            this.titleSewers[name] = data;
-            while ((data = this.titleSewers[name = this.titles[this.sewerIndex]])) {
+            titleSewers[name] = data;
+            while ((data = titleSewers[name = this.titles[sewerIndex]])) {
                 data.forEach(processRecord.bind(this, name));
-                this.sewerIndex++;
-                var percent = this.sewerIndex / this.titles.length;
+                sewerIndex++;
+                var percent = sewerIndex / this.titles.length;
                 Event.fire('load.progress', { percent: percent });
                 if (percent === 1) {
                     Event.fire('load.finished');

@@ -6,7 +6,7 @@ define ('loader', ['event', 'model'], function (Event, Model) {
             var script = document.createElement('script');
             script.type = "text/javascript";
             window[name] = function (data) {
-                Model.load(data, name);
+                Model.add(data, name);
                 window[name] = null;
             };
             script.src = "meta/" + name + ".csv.js";

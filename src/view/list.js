@@ -13,8 +13,15 @@ define ('view/list', ['dom', 'event', 'controller', 'model'], function (dom, Eve
     var ListView = {
         mainBlock: null,
         lastTitle: null,
+        pool: [],
         clear: function () {
-            this.mainBlock.innerHTML = "";
+            var mb = this.mainBlock;
+            mb.style.display = 'none';
+            this.pool.push.apply(
+                this.pool,
+                [].map.call(mb.children, this.removeItem)
+            );
+            mb.style.display = '';
             this.lastTitle = "";
         },
         addTitle: function (title) {
@@ -33,21 +40,34 @@ define ('view/list', ['dom', 'event', 'controller', 'model'], function (dom, Eve
             if (this.lastTitle !== item.title) {
                 this.addTitle(this.lastTitle = item.title);
             }
-            var div = dom('<div>');
-                var audio = dom('<audio>', div);
-                    audio.src = Model.getFullPath(item.fileName);
+            var div, audio, a;
+            if (this.pool.length) {
+                div = this.pool.pop();
+                audio = div.querySelector('audio');
+                a = div.querySelector('span');
+            } else {
+                div = dom('<div>');
+                audio = dom('<audio>', div);
                     audio.controls = true;
                     audio.preload = 'none';
                     audio.onplay = preloadFurther;
-                var a = dom('<a.spoiler>text</a>', div);
-                    a.href = '#';
+                a = dom('<span.spoiler>text</span>', div);
                     a.onclick = this.showSpoiler;
-                    a.title = item.phrase;
+            }
+            audio.src = Model.getFullPath(item.fileName);
+            a.title = item.phrase;
             this.mainBlock.appendChild(div);
         }
     };
     Event.on('init', function () {
-        this.mainBlock = dom('#listen');
+        var mb = this.mainBlock = dom('#listen');
+        this.removeItem = mb.removeChild.bind(mb);
+        mb.addEventListener('click', function (event) {
+            var t = event.target;
+            if (t.nodeName.toLowerCase() === 'mark') {
+                t.innerHTML = t.getAttribute('data-text');
+            }
+        });
         Event.on('search.clear', this.clear.bind(this));
         Event.on('search.item', this.addItem.bind(this));
     }.bind(ListView));
