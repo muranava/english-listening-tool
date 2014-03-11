@@ -2,6 +2,7 @@
 <html>
     <head>
         <meta name="viewport" content="initial-scale = 1.0,maximum-scale = 1.0" />
+        <meta charset="utf-8" />
         <link rel="stylesheet" type="text/css" href="style.css" />
     </head>
     <body>
@@ -16,7 +17,10 @@
                 <input type="checkbox" id="wholeword" /><label for="wholeword">whole word</label>
             </div>
             <span class="info"></span>
-            <div id="series_list">
+            <audio id="player" controls></audio>
+            <div id="options">
+                <button id="all_spoilers">Expand all spoilers</button>
+                <div id="series_list"></div>
             </div>
         </form>
         <div id="listen">

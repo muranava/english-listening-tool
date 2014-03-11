@@ -4,7 +4,6 @@ define ('view/search', ['dom', 'event'], function (dom, Event) {
             var w, c, percent = data.percent;
             if (percent === 1) {
                 this.kw.style.boxShadow = '';
-                this.kw.disabled = false;
                 this.kw.focus();
                 return;
             }
@@ -41,6 +40,7 @@ define ('view/search', ['dom', 'event'], function (dom, Event) {
                 });
             };
             dom('#list').onclick = function () { me.form.classList.toggle('listExpanded'); };
+            dom('#all_spoilers').onclick = function () { Event.fire('spoiler.all'); };
             Event.on('series', function (data) {
                 var label = dom('<label>', dom('<div.series_list_item>', me.slist));
                 var input = dom('<input>', label);

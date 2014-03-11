@@ -1,6 +1,8 @@
 media
 meta
 dist
+cfg
 node_modules
+vendor
 main.min.js
 main.min.map

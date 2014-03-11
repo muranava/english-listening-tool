@@ -22,6 +22,16 @@ module.exports = function(grunt) {
         }
       }
     },
+    requirejs: {
+      compile: {
+        options: {
+          mainConfigFile: "cfg/require.js",
+          include: ['../vendor/require.min.js'],
+          name: "main",
+          out: "main.min.js"
+        }
+      }
+    },
     jasmine : {
       src: 'src/rmin.js',
       options: {
@@ -43,15 +53,16 @@ module.exports = function(grunt) {
     }*/
   });
 
-  grunt.loadNpmTasks('grunt-contrib-uglify');
+  //grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   //grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-contrib-concat');
+  //grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('grunt-contrib-requirejs');
   grunt.loadNpmTasks('grunt-contrib-jasmine');
 
   grunt.registerTask('test', ['jshint', 'jasmine']);
 
-  grunt.registerTask('default', [/*'jshint', */'jasmine', 'concat', 'uglify']);
+  grunt.registerTask('default', [/*'jshint', */'jasmine', 'requirejs'/*, 'concat', 'uglify'*/]);
 
 };
 

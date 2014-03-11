@@ -1,4 +1,4 @@
-define ('event', [], function () {
+define (function () {
     var handlers = {};
     return {
         on: function (type, callback) {
@@ -11,11 +11,6 @@ define ('event', [], function () {
             handlers[type].push(callback);
         },
         fire: function (type, data) {
-            var value = data;
-            if (Object(data) !== data) {
-                data = { valueOf: function () { return value; } };
-            }
-            data.type = type;
             (handlers[type] || []).forEach(function (cb) { cb(data); });
         }
     };

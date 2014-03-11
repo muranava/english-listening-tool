@@ -1,25 +1,20 @@
-define ('loader', ['event', 'model'], function (Event, Model) {
-    Event.on('init', function () {
-        var data = Model.series,
-            name;
-        function loadScript (name) {
-            var script = document.createElement('script');
+define ('loader', ['event', 'q'], function (Event, Q) {
+    return function loadScript (name, ep) {
+        return Q.promise(function(resolve, reject) {
+            var title = name + '_' + ep,
+                script = document.createElement('script');
             script.type = "text/javascript";
-            window[name] = function (data) {
-                Model.add(data, name);
-                window[name] = null;
+            window[title] = function (data) {
+                window[title] = null;
+//                    document.body.removeChild(script);
+                data.title = title;
+                resolve(data);
             };
-            script.src = "meta/" + name + ".csv.js";
+            script.src = "meta/" + title + ".csv.js";
+            script.onerror = function () {
+                reject(Error("script error"));
+            };
             document.body.appendChild(script);
-        }
-        function processEpisode (name, ep) {
-            var title = name + '_' + ep;
-            Model.titles.push(title);
-            loadScript(title);
-        }
-        for (name in data) {
-            data[name].forEach(processEpisode.bind(null, name));
-        }
-    });
-    return true;
+        });
+    };
 });

@@ -1,4 +1,4 @@
-define ('view/list', ['dom', 'event', 'controller', 'model'], function (dom, Event, Controller, Model) {
+define ('view/list', ['dom', 'event', 'controller'], function (dom, Event, Controller) {
     function preloadFurther () {
         var div = this.parentNode,
             node,
@@ -10,53 +10,103 @@ define ('view/list', ['dom', 'event', 'controller', 'model'], function (dom, Eve
             node.preload = 'auto';
         }
     }
+    var player = dom("#player"),
+        lastPlayed = null;
+    player.oncanplaythrough = player.play;
     var ListView = {
         mainBlock: null,
-        lastTitle: null,
+        lastTitle: "",
+        expandMarks: false,
         pool: [],
+        items: [],
         clear: function () {
-            var mb = this.mainBlock;
+            var mb = this.mainBlock,
+                i = mb.children.length, j,
+                item;
             mb.style.display = 'none';
-            this.pool.push.apply(
-                this.pool,
-                [].map.call(mb.children, this.removeItem)
-            );
+            if (lastPlayed) {
+                lastPlayed.classList.remove('itemActive');
+            }
+            while (i--) {
+                item = mb.children[i];
+                mb.removeChild(item);
+                if (item.classList.contains('block')) {
+                    j = item.children.length;
+                    while (j--) {
+                        this.pool.push(item.removeChild(item.children[j]));
+                    }
+                }
+            }
             mb.style.display = '';
             this.lastTitle = "";
-        },
-        addTitle: function (title) {
-            dom('<h3>', this.mainBlock).innerHTML = title;
         },
         showSpoiler: function () {
             if (this.classList.contains('spoiled')) {
                 return false;
             }
-            this.innerHTML = Controller.placeMarks(this.title);
-            this.title = '';
+            this.innerHTML = Controller.placeMarks(this.title, ListView.expandMarks);
+            this.title = "";
             this.classList.add('spoiled');
             return false;
+        },
+        playAudio: function () {
+            this.classList.add('itemPlayed');
+            if (lastPlayed) {
+                lastPlayed.classList.remove('itemActive');
+            }
+            lastPlayed = this.parentNode;
+            lastPlayed.classList.add('itemActive');
+            player.src = lastPlayed.dataset.src;
+            player.load();
+            setTimeout(function(){ player.pause(); }, 1);
+        },
+        addTitle: function (title) {
+            this.addGroup();
+            var heading = dom('<h3>', this.mainBlock);
+            heading.innerHTML = title;
+            heading.onclick = function () {
+                this.classList.toggle('collapsed');
+            };
+        },
+        addGroup: function () {
+            if (!this.items.length) return;
+            var div = dom("<div.block>", this.mainBlock);
+            var doc = document.createDocumentFragment();
+            this.items.forEach(function (node) {
+                doc.appendChild(node);
+            });
+            div.appendChild(doc);
+            this.items = [];
+        },
+        addItems: function (items) {
+            this.clear();
+            this.items = [];
+            items.forEach(this.addItem.bind(this));
+            this.addGroup();
         },
         addItem: function (item) {
             if (this.lastTitle !== item.title) {
                 this.addTitle(this.lastTitle = item.title);
             }
-            var div, audio, a;
+            var div, input, a;
             if (this.pool.length) {
                 div = this.pool.pop();
-                audio = div.querySelector('audio');
+                //audio = div.querySelector('audio');
                 a = div.querySelector('span');
+                if (a.classList.contains('spoiled')) {
+                    a.classList.remove('spoiled');
+                    a.innerHTML = "text";
+                }
             } else {
-                div = dom('<div>');
-                audio = dom('<audio>', div);
-                    audio.controls = true;
-                    audio.preload = 'none';
-                    audio.onplay = preloadFurther;
+                div = dom('<div.item>');
+                input = dom('<button>Play</button>', div);
+                    input.onclick = this.playAudio;
                 a = dom('<span.spoiler>text</span>', div);
                     a.onclick = this.showSpoiler;
             }
-            audio.src = Model.getFullPath(item.fileName);
+            div.dataset.src = item.getFullPath();
             a.title = item.phrase;
-            this.mainBlock.appendChild(div);
+            this.items.push(div);
         }
     };
     Event.on('init', function () {
@@ -65,11 +115,15 @@ define ('view/list', ['dom', 'event', 'controller', 'model'], function (dom, Eve
         mb.addEventListener('click', function (event) {
             var t = event.target;
             if (t.nodeName.toLowerCase() === 'mark') {
-                t.innerHTML = t.getAttribute('data-text');
+                if (t.dataset.text) {
+                    t.innerHTML = t.dataset.text;
+                }
             }
         });
-        Event.on('search.clear', this.clear.bind(this));
-        Event.on('search.item', this.addItem.bind(this));
+        Event.on('search.items', this.addItems.bind(this));
+        Event.on('search.count', function (data) {
+            ListView.expandMarks = !data.differentResults;
+        });
     }.bind(ListView));
     return ListView;
 });
